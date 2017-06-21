@@ -23,22 +23,23 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 
-SOURCES += main.cpp\
-        mainwindow.cpp \
-    openglwidget.cpp
+SOURCES += \
+    src/mainwindow.cpp \
+    src/openglwidget.cpp \
+    src/main.cpp
 
-HEADERS  += mainwindow.h \
-    openglwidget.h \
-    mesh.h \
-    model.h \
-    shader.h \
-    camera.h
+HEADERS  += headers/mainwindow.h \
+    headers/openglwidget.h \
+    headers/mesh.h \
+    headers/model.h \
+    headers/shader.h \
+    headers/camera.h \
 
 FORMS    += mainwindow.ui
 
 RESOURCES +=  mwshviewer.qrc
 
-INCLUDEPATH += $$PWD/include
+INCLUDEPATH += $$PWD/headers
 
 LIBS += -L$$PWD/lib/x86 -lassimp \
     -lopengl32 \
