@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>400</width>
+    <height>300</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralWidget">
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="OpenGLWidget" name="openGLWidget">
+      <property name="focusPolicy">
+       <enum>Qt::StrongFocus</enum>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menuBar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>400</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionOpenFile"/>
+   </widget>
+   <widget class="QMenu" name="menuDisplay_Mode">
+    <property name="toolTip">
+     <string>Choose Display Mode</string>
+    </property>
+    <property name="statusTip">
+     <string>Choose Display Mode</string>
+    </property>
+    <property name="title">
+     <string>Display Mode</string>
+    </property>
+    <addaction name="actionWireframe"/>
+    <addaction name="actionFill"/>
+    <addaction name="actionFilllines"/>
+   </widget>
+   <widget class="QMenu" name="menuShading_Mode">
+    <property name="title">
+     <string>Shading Mode</string>
+    </property>
+    <property name="separatorsCollapsible">
+     <bool>false</bool>
+    </property>
+    <addaction name="actionGouraud"/>
+    <addaction name="actionPhong"/>
+    <addaction name="actionSmooth"/>
+    <addaction name="actionFlat"/>
+   </widget>
+   <widget class="QMenu" name="menuTexture_Mode">
+    <property name="title">
+     <string>Texture Mode</string>
+    </property>
+    <addaction name="actionTexture"/>
+    <addaction name="actionColor"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuDisplay_Mode"/>
+   <addaction name="menuShading_Mode"/>
+   <addaction name="menuTexture_Mode"/>
+  </widget>
+  <widget class="QToolBar" name="mainToolBar">
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+  </widget>
+  <widget class="QStatusBar" name="statusBar"/>
+  <action name="actionOpenFile">
+   <property name="icon">
+    <iconset resource="mwshviewer.qrc">
+     <normaloff>:/images/file.ico</normaloff>:/images/file.ico</iconset>
+   </property>
+   <property name="text">
+    <string>Open...</string>
+   </property>
+   <property name="toolTip">
+    <string>Open an existing file</string>
+   </property>
+   <property name="statusTip">
+    <string>Open an existing file</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
+  </action>
+  <action name="actionWireframe">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Wireframe</string>
+   </property>
+  </action>
+  <action name="actionFill">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Fill</string>
+   </property>
+  </action>
+  <action name="actionFilllines">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Filllines</string>
+   </property>
+  </action>
+  <action name="actionGouraud">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Gouraud</string>
+   </property>
+  </action>
+  <action name="actionPhong">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Phong</string>
+   </property>
+  </action>
+  <action name="actionSmooth">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Smooth</string>
+   </property>
+  </action>
+  <action name="actionFlat">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Flat</string>
+   </property>
+  </action>
+  <action name="actionTexture">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Texture</string>
+   </property>
+  </action>
+  <action name="actionColor">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Color</string>
+   </property>
+  </action>
+ </widget>
+ <layoutdefault spacing="6" margin="11"/>
+ <customwidgets>
+  <customwidget>
+   <class>OpenGLWidget</class>
+   <extends>QOpenGLWidget</extends>
+   <header>openglwidget.h</header>
+   <slots>
+    <slot>openFile()</slot>
+   </slots>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="mwshviewer.qrc"/>
+ </resources>
+ <connections/>
+</ui>
