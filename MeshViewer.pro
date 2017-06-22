@@ -48,7 +48,8 @@ LIBS += -L$$PWD/lib/x86 -lassimp \
     -lglew32s \
     -lSOIL
 
-DISTFILES += shaders/gourandshader.frag \
+DISTFILES += \
+    shaders/gourandshader.frag \
     shaders/shader.frag \
     shaders/gourandshader.vert \
     shaders/shader.vert

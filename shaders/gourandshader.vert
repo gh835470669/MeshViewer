@@ -51,9 +51,16 @@ void main()
 
 
     //specular lighting
+//    vec3 viewDir = normalize(vec3(view_inv * vec4(0.0, 0.0, 0.0, 1.0)) - Position);
+//    vec3 reflectDir = reflect(-lightDir, norm); //negate the lightDir because the reflect function expects the first vector to point from the light source towards the fragment's position
+//    float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
+//    float specularStrength = 1.0f;
+//    vec3 specular = light.specular * spec *(texture_flag ? texture(texture_specular1, texCoords).xzy : specularStrength);
+
+    //specular lighting , blinn
     vec3 viewDir = normalize(vec3(view_inv * vec4(0.0, 0.0, 0.0, 1.0)) - Position);
-    vec3 reflectDir = reflect(-lightDir, norm);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
+    vec3 halfway = normalize(lightDir + viewDir);
+    float spec = pow(max(dot(halfway, norm), 0.0), shininess);
     float specularStrength = 1.0f;
     vec3 specular = light.specular * spec *(texture_flag ? texture(texture_specular1, texCoords).xzy : specularStrength);
 

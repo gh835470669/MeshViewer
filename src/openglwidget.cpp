@@ -21,12 +21,6 @@ OpenGLWidget::~OpenGLWidget(){
 }
 
 void OpenGLWidget::initializeGL() {
-    QMatrix4x4 m;
-    m.perspective(40, 1.0f, 0.1f, 100.0f);
-    QMatrix4x4 m1;
-    m1.ortho(-1,1,-1,1,1,10);
-
-
     qDebug()<< QDir::currentPath();
 
     qDebug("%d", context()->format().version().first);

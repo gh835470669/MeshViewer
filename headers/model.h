@@ -40,7 +40,7 @@ private:
 
     /*  Functions   */
     // Loads a model with supported ASSIMP extensions from file and stores the resulting meshes in the meshes vector.
-    void loadModel(string path)
+    bool loadModel(string path)
     {
         // Read file via ASSIMP
         Assimp::Importer importer;
@@ -49,13 +49,15 @@ private:
         if(!scene || scene->mFlags == AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) // if is Not Zero
         {
             cout << "ERROR::ASSIMP:: " << importer.GetErrorString() << endl;
-            return;
+            return false;
         }
         // Retrieve the directory path of the filepath
         this->directory = path.substr(0, path.find_last_of('/'));
 
         // Process ASSIMP's root node recursively
         this->processNode(scene->mRootNode, scene);
+
+        return true;
     }
 
     // Processes a node in a recursive fashion. Processes each individual mesh located at the node and repeats this process on its children nodes (if any).

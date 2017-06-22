@@ -3,17 +3,8 @@
 
 // Std. Includes
 #include <string>
-#include <fstream>
-#include <sstream>
-#include <iostream>
 #include <vector>
 using namespace std;
-// GL Includes
-#include <GL/glew.h> // Contains all the necessery OpenGL includes
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
-#include "shader.h"
 
 struct Vertex {
     // Position
@@ -35,7 +26,6 @@ public:
     /*  Mesh Data  */
     vector<Vertex> vertices;
     vector<GLuint> indices;
-    //vector<Texture> textures;
     vector<GLuint> textures;
 
     /*  Render data  */
