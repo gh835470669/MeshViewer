@@ -33,7 +33,7 @@ ___
   * Assimp : read 3D model file and get the model data with the built-in data structures
   * SOIL : read the texture image files
   * GLM : OpenGL Mathematics Library
-* Phong illumination Model
+* Blinn-Phong illumination Model
 * Lighting Material
 
 ## Manaul
