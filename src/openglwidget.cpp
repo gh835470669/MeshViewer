@@ -1,23 +1,22 @@
-#include <GL/glew.h>
 #include "openglwidget.h"
-#include <QFileDialog>
-#include <QDir>
-#include <QOpenGLContext>
-#include <glm/gtc/type_ptr.hpp>
-#include "mesh.h"
+
 
 OpenGLWidget::OpenGLWidget(QWidget* parent) : QOpenGLWidget(parent),
-    model(0), phongShader(0), gourandShader(0), curShader(0),
+    phongShader(0), gourandShader(0), curShader(0),
     camera(glm::vec3(0.0f, 8.0f, 20.0f))
 {
 
 }
 
 OpenGLWidget::~OpenGLWidget(){
+    makeCurrent();
+
     curShader = 0;
     delete phongShader;
     delete gourandShader;
-    clearModel();
+    mesh.deleteBuffers();
+
+    doneCurrent();
 }
 
 void OpenGLWidget::initializeGL() {
@@ -32,14 +31,30 @@ void OpenGLWidget::initializeGL() {
     if (GLEW_OK != err){
         qDebug("GLEW Error: %s\n", glewGetErrorString(err));
     }
-    //The current path is different, the path should be changed appropriately
-    phongShader = new Shader("shaders/shader.vert", "shaders/shader.frag");
-    gourandShader = new Shader("shaders/gourandshader.vert", "shaders/gourandshader.frag");
-    if (phongShader == nullptr || gourandShader == nullptr) {
-        qDebug() << "Shader is null";
-    }
+
+
+    phongShader = new ShaderProgram();
+    if (!phongShader->addShaderFromFile(Shader::Vertex, "shaders/shader.vert"))
+        qDebug() << phongShader->log().data();
+    if (!phongShader->addShaderFromFile(Shader::Fragment, "shaders/shader.frag"))
+        qDebug() << phongShader->log().data();
+    if (!phongShader->link())
+        qDebug() << phongShader->log().data();
+
+    gourandShader = new ShaderProgram();
+    if (!gourandShader->addShaderFromFile(Shader::Vertex, "shaders/gourandshader.vert"))
+        qDebug() << gourandShader->log().data();
+    if (! gourandShader->addShaderFromFile(Shader::Fragment, "shaders/gourandshader.frag"))
+        qDebug() << gourandShader->log().data();
+    if (!gourandShader->link())
+        qDebug() << gourandShader->log().data();
+
     glEnable(GL_DEPTH_TEST);
     glClearColor(100 / 255.0f, 100 / 255.0f, 200 / 255.0f, 1.0f);
+
+    //for debug
+    mesh.loadModelFromFile((QDir::currentPath() + "/models/nanosuit/nanosuit.obj").toStdString());
+    mesh.genBuffers();
 }
 
 void OpenGLWidget::resizeGL(int w, int h) {
@@ -53,14 +68,14 @@ void OpenGLWidget::resizeGL(int w, int h) {
 
 void OpenGLWidget::openfile()
 {
-    QStringList filters;
-      filters << "Alias WaveFront Objects (*.obj)"
-              << "Collada File Format (*.dae)"
-              << "3D-Studio File Format (*.3ds)"
-              << "All files (*)";
-    QFileDialog fileDialog(this);
+
+    QFileDialog fileDialog(this, tr("Select A Model File"));
     fileDialog.setViewMode(QFileDialog::List);
-    fileDialog.setDirectory(QDir::currentPath());
+    fileDialog.setDirectory(QDir::currentPath() + "/models");
+    QStringList filters;
+    filters << "All Model files (*.obj *.dae)"
+            << "Alias WaveFront Objects (*.obj)"
+            << "Collada File Format (*.dae)";
     fileDialog.setNameFilters(filters);
 
     QString modelFilename;
@@ -69,9 +84,10 @@ void OpenGLWidget::openfile()
     }
 
     if (!modelFilename.isEmpty()) {
-        clearModel();
-        model = new Model(modelFilename.toStdString());
-        setupModel();
+        makeCurrent();
+        mesh.clear();
+        mesh.loadModelFromFile(modelFilename.toStdString());
+        mesh.genBuffers();
     }
 }
 
@@ -93,10 +109,8 @@ void OpenGLWidget::onShadingModeChanged(QAction *mode)
 {
     QString actionName = mode->objectName();
     if (actionName.compare(tr("actionGouraud")) == 0) {
-        qDebug() << "shadingMode = GOURAUD;";
         shadingMode = GOURAUD;
     } else if (actionName.compare(tr("actionPhong")) == 0) {
-        qDebug() << "shadingMode = PHONG;";
         shadingMode = PHONG;
     } else {
         shadingMode = PHONG;
@@ -132,70 +146,58 @@ void OpenGLWidget::paintGL() {
     {
         case GOURAUD:
             curShader = gourandShader;
-            //qDebug() << "shadingMode = GOURAUD;";
             break;
         case PHONG:
             curShader = phongShader;
-            //qDebug() << "shadingMode = PHONG;";
             break;
         default:
             curShader = phongShader;
             break;
     }
 
-    if (model != 0)
+    curShader->bind();
+
+    uploadMatrices();
+
+    //texture or color
+    bool texture_flag = false;
+    if (textureMode == TEXTURE)
+        texture_flag = true;
+    else if (textureMode == COLOR)
+        texture_flag = false;
+
+    curShader->setUniform("texture_flag", texture_flag);
+    curShader->setUniform("objectColor", 1.0f, 1.0f, 1.0f);
+
+    //flat or smooth
+    curShader->setUniform("flat_flag", flat_flag);
+
+    Light light;
+    //fill, wireFrame or fillLine
+    switch (displayMode)
     {
-        //update matrix
-        matrixProjection.setToIdentity();
-        matrixProjection.perspective(camera.Zoom, (float)this->width() / this->height(), 0.1f, 100);
-        matrixModel.setToIdentity();
-        matrixModel.scale(QVector3D(scaler, scaler, scaler));
-        matrixModel.translate(QVector3D(transX, transY, 0.0f));
-        matrixModel.rotate(rotationAroundY, QVector3D(0, 1, 0));
+        case FILL:
+            glPolygonMode(GL_FRONT, GL_FILL);
+            mesh.paint(curShader, &light);
+            break;
+        case FILLLINES: //draw twice : FILL and LINE
+            glPolygonMode(GL_FRONT, GL_FILL);
+            mesh.paint(curShader, &light);
 
-        curShader->Use();
-
-        GLint lightAmbientLoc = glGetUniformLocationARB(curShader->Program, "light.ambient");
-        GLint lightDiffuseLoc = glGetUniformLocationARB(curShader->Program, "light.diffuse");
-        GLint lightSpecularLoc = glGetUniformLocationARB(curShader->Program, "light.specular");
-        GLint lightPosLoc = glGetUniformLocationARB(curShader->Program, "light.position");
-        glUniform3fARB(lightAmbientLoc, lightAmbient.x(), lightAmbient.y(), lightAmbient.z());
-        glUniform3fARB(lightDiffuseLoc, lightDiffus.x(), lightDiffus.y(), lightDiffus.z());
-        glUniform3fARB(lightSpecularLoc, lightSpecular.x(), lightSpecular.y(), lightSpecular.z());
-        glUniform3fARB(lightPosLoc, 10.0f, 5.0f, 5.0f);
-
-        bool texture_flag = false;
-        if (textureMode == TEXTURE)
-            texture_flag = true;
-        else if (textureMode == COLOR)
-            texture_flag = false;
-        glUniform1i(glGetUniformLocationARB(curShader->Program, "texture_flag"), texture_flag);
-
-        GLuint objectColorLoc = glGetUniformLocationARB(curShader->Program, "objectColor");
-        glUniform3fARB(objectColorLoc, 1.0f, 1.0f, 1.0f);
-        switch (displayMode)
-        {
-            case FILL:
-                glPolygonMode(GL_FRONT, GL_FILL);
-                drawModel();
-                break;
-            case FILLLINES: //draw twice : FILL and LINE
-                glPolygonMode(GL_FRONT, GL_FILL);
-                drawModel();
-
-                glUniform1i(glGetUniformLocationARB(curShader->Program, "texture_flag"), false);
-                glUniform3fARB(objectColorLoc, 0.0f, 0.0f, 0.0f);
-                glPolygonMode(GL_FRONT, GL_LINE);
-                drawModel();
-                break;
-            case WIREFRAME:
-                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-                drawModel();
-                break;
-            default:
-                break;
-        }
+            curShader->setUniform("texture_flag", false);
+            curShader->setUniform("objectColor", 0.0f, 0.0f, 0.0f);
+            glPolygonMode(GL_FRONT, GL_LINE);
+            mesh.paint(curShader, &light);
+            break;
+        case WIREFRAME:
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            mesh.paint(curShader, &light);
+            break;
+        default:
+            break;
     }
+
+    curShader->release();
 
     update();
 }
@@ -294,165 +296,21 @@ void OpenGLWidget::wheelEvent(QWheelEvent *event)
     }
 }
 
-void OpenGLWidget::setupModel()
+void OpenGLWidget::uploadMatrices()
 {
-    for (size_t i = 0; i < model->meshes.size(); i++) {
-        setupMesh(model->meshes.at(i));
-    }
-    for (size_t i = 0; i < model->textures_loaded.size(); i++) {
-        setupTex(model->textures_loaded.at(i));
-    }
+    //update matrix
+    matrixProjection.setToIdentity();
+    matrixProjection.perspective(camera.Zoom, (float)this->width() / this->height(), 0.1f, 100);
+    matrixModel.setToIdentity();
+    matrixModel.scale(QVector3D(scaler, scaler, scaler));
+    matrixModel.translate(QVector3D(transX, transY, 0.0f));
+    matrixModel.rotate(rotationAroundY, QVector3D(0, 1, 0));
+
+    //upload matrix
+    curShader->setUniformMatrix4("view", glm::value_ptr(camera.GetViewMatrix()), 1, GL_FALSE);
+    curShader->setUniformMatrix4("view_inv", glm::value_ptr(glm::inverse(camera.GetViewMatrix())), 1, GL_FALSE);
+    curShader->setUniformMatrix4("projection", matrixProjection.data(), 1, GL_FALSE);
+    curShader->setUniformMatrix4("model", matrixModel.data(), 1, GL_FALSE);
 }
 
-void OpenGLWidget::setupMesh(Mesh &mesh)
-{
-    makeCurrent();
 
-    // Create buffers/arrays
-    glGenVertexArrays(1, &mesh.VAO);
-    glGenBuffersARB(1, &mesh.VBO);
-    glGenBuffersARB(1, &mesh.EBO);
-
-    glBindVertexArray(mesh.VAO);
-
-    // Load data into vertex buffers
-    glBindBufferARB(GL_ARRAY_BUFFER, mesh.VBO);
-    // A great thing about structs is that their memory layout is sequential for all its items.
-    // The effect is that we can simply pass a pointer to the struct and it translates perfectly to a glm::vec3/2 array which
-    // again translates to 3/2 floats which translates to a byte array.
-    glBufferDataARB(GL_ARRAY_BUFFER, mesh.vertices.size() * sizeof(Vertex), &(mesh.vertices[0]), GL_STATIC_DRAW_ARB);
-
-    glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
-    glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER, mesh.indices.size() * sizeof(GLuint), &(mesh.indices[0]), GL_STATIC_DRAW_ARB);
-
-    // Set the vertex attribute pointers
-
-    // Vertex Positions
-    glEnableVertexAttribArrayARB(0);
-    glVertexAttribPointerARB(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)offsetof(Vertex, Position));
-    // Vertex Normals
-    glEnableVertexAttribArrayARB(1);
-    glVertexAttribPointerARB(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)offsetof(Vertex, Normal));
-    // Vertex Texture Coords
-    glEnableVertexAttribArrayARB(2);
-    glVertexAttribPointerARB(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)offsetof(Vertex, TexCoords));
-
-    glBindVertexArray(0);
-
-    auto e = glGetError();
-    if (e != GL_NO_ERROR) {
-        qDebug() << e;
-    } else {
-        qDebug() << __FILE__ << __FUNCTION__ << " NO ERROR";
-    }
-}
-
-void OpenGLWidget::drawModel()
-{
-    GLint viewLoc = glGetUniformLocationARB(curShader->Program, "view");
-    GLint view_invPosLoc = glGetUniformLocationARB(curShader->Program, "view_inv");
-    GLuint projectionLoc = glGetUniformLocationARB(curShader->Program, "projection");
-    GLuint modelLoc = glGetUniformLocationARB(curShader->Program, "model");
-    glUniformMatrix4fvARB(viewLoc, 1, GL_FALSE,  glm::value_ptr(camera.GetViewMatrix()));
-    glUniformMatrix4fvARB(view_invPosLoc, 1, GL_FALSE, glm::value_ptr(glm::inverse(camera.GetViewMatrix())));
-    glUniformMatrix4fvARB(projectionLoc, 1, GL_FALSE,  matrixProjection.data());
-    glUniformMatrix4fvARB(modelLoc, 1, GL_FALSE,  matrixModel.data());
-
-    GLint flat_flagLoc = glGetUniformLocationARB(curShader->Program, "flat_flag");
-    glUniform1ui(flat_flagLoc, flat_flag);
-
-    for (size_t i = 0; i < model->meshes.size(); i++) {
-        // Bind appropriate textures
-        GLuint diffuseNr = 1;
-        GLuint specularNr = 1;
-        for(GLuint j = 0; j < model->meshes.at(i).textures.size(); j++)
-        {
-            GLuint index = model->meshes.at(i).textures.at(j);
-            glActiveTextureARB(GL_TEXTURE0 + j); // Active proper texture unit before binding
-
-            // Retrieve texture number (the N in diffuse_textureN)
-            stringstream ss;
-            string number;
-            string name = model->textures_loaded.at(index).type;
-            if(name == "texture_diffuse")
-                ss << diffuseNr++; // Transfer GLuint to stream
-            else if(name == "texture_specular")
-                ss << specularNr++; // Transfer GLuint to stream
-            number = ss.str();
-            // Now set the sampler to the correct texture unit
-            glUniform1iARB(glGetUniformLocationARB(curShader->Program, (name + number).c_str()), j);
-            // And finally bind the texture
-            glBindTexture(GL_TEXTURE_2D, model->textures_loaded.at(index).id);
-
-        }
-        //Also set each mesh's shininess property to a default value (if you want you could extend this to another mesh property and possibly change this value)
-        glUniform1fARB(glGetUniformLocationARB(curShader->Program, "shininess"), 32.0f);
-
-        glBindVertexArray(model->meshes.at(i).VAO);
-        glDrawElements(GL_TRIANGLES, model->meshes.at(i).indices.size(), GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
-
-        // Always good practice to set everything back to defaults once configured.
-        for (GLuint i = 0; i < model->meshes.at(i).textures.size(); i++)
-        {
-            glActiveTextureARB(GL_TEXTURE0 + i);
-            glBindTexture(GL_TEXTURE_2D, 0);
-        }
-    }
-
-}
-
-void OpenGLWidget::clearModel()
-{
-    if (model == 0) {
-        return;
-    }
-
-    makeCurrent();
-    for (size_t i = 0; i < model->meshes.size(); i++) {
-        glDeleteBuffersARB(1, &(model->meshes.at(i).VBO));
-        glDeleteBuffersARB(1, &(model->meshes.at(i).EBO));
-        glDeleteVertexArrays(1, &(model->meshes.at(i).VAO));
-    }
-    for (size_t i = 0; i < model->textures_loaded.size(); i++) {
-        glDeleteTextures(1, &(model->textures_loaded.at(i).id));
-    }
-    doneCurrent();
-}
-
-void OpenGLWidget::setupTex(Texture& texture)
-{
-    texture.id = textureFromFile(texture.path, model->directory);
-}
-
-uint OpenGLWidget::textureFromFile(string path, string directory)
-{
-    makeCurrent();
-     //Generate texture ID and load texture data
-    string filename = path;
-    filename = directory + '/' + filename;
-    GLuint textureID;
-    glGenTextures(1, &textureID);
-    int width,height;
-    unsigned char* image = SOIL_load_image(filename.c_str(), &width, &height, 0, SOIL_LOAD_RGB);
-    // Assign texture to ID
-    glBindTexture(GL_TEXTURE_2D, textureID);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    // Parameters
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR );
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    SOIL_free_image_data(image);
-
-    auto e = glGetError();
-    if (e != GL_NO_ERROR) {
-        qDebug()   << "e "  << e << __FUNCTION__  << " INVALID_OPERATION";
-    }
-
-    return textureID;
-}

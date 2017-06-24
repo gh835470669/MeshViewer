@@ -1,14 +1,23 @@
 #ifndef OPENGLWIDGET_H
 #define OPENGLWIDGET_H
 
-#include "model.h"
+#include <GL/glew.h>
+#include <glm/gtc/type_ptr.hpp>
+
 #include <QOpenGLWidget>
 #include <QAction>
 #include <QMatrix4x4>
 #include <QKeyEvent>
 #include <QMouseEvent>
-#include "shader.h"
+#include <QFileDialog>
+#include <QDir>
+#include <QOpenGLContext>
+
+#include "mesh.h"
+#include "shaderprogram.h"
 #include "camera.h"
+
+using namespace makai;
 
 class OpenGLWidget : public QOpenGLWidget
 {
@@ -68,21 +77,16 @@ private:
     QMatrix4x4 matrixModel;
     Camera camera;
 
-    Model* model;
-    Shader* phongShader;
-    Shader* gourandShader;
-    Shader* curShader;
+    Mesh mesh;
+    ShaderProgram* phongShader;
+    ShaderProgram* gourandShader;
+    ShaderProgram* curShader;
 
     QVector3D lightAmbient = QVector3D(0.1f, 0.1f, 0.1f);
     QVector3D lightDiffus = QVector3D(1.0f, 1.0f, 1.0f);
     QVector3D lightSpecular= QVector3D(1.0f, 1.0f, 1.0f);
 
-    void setupModel();
-    void setupMesh(Mesh& mesh);
-    void drawModel();
-    void clearModel();
-    void setupTex(Texture& texture);
-    uint textureFromFile(string path, string directory);
+    void uploadMatrices();
 
 public slots:
     void openfile();

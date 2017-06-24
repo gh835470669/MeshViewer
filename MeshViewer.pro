@@ -26,14 +26,18 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     src/mainwindow.cpp \
     src/openglwidget.cpp \
-    src/main.cpp
+    src/main.cpp \
+    src/shader.cpp \
+    src/shaderprogram.cpp \
+    src/mesh.cpp
 
 HEADERS  += headers/mainwindow.h \
     headers/openglwidget.h \
-    headers/mesh.h \
-    headers/model.h \
-    headers/shader.h \
     headers/camera.h \
+    headers/light.h \
+    headers/shaderprogram.h \
+    headers/shader.h \
+    headers/mesh.h
 
 FORMS    += mainwindow.ui
 

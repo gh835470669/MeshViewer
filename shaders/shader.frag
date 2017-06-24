@@ -1,6 +1,6 @@
 //fragment shader for nomal tutorial
 //calculate the result color with phong lighting model in world space
-#version 330 core
+#version 330
 
 uniform vec3 objectColor;
 

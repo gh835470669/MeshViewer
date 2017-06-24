@@ -1,6 +1,6 @@
 //vertex shader for nomal tutorial
 //transform position and normal to world space and send to fragment shader
-# version 330 core
+#version 330
 layout (location = 0) in vec3 posAttr;
 layout (location = 1) in vec3 norAttr;
 layout (location = 2) in vec2 texCoords;

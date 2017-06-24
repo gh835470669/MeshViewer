@@ -33,20 +33,26 @@ void MainWindow::createActionGroups()
     shadingModeAG = new QActionGroup(this);
     shadingModeAG->addAction(ui->actionGouraud);
     shadingModeAG->addAction(ui->actionPhong);
-    ui->actionGouraud->setChecked(true);
-    ui->openGLWidget->shadingMode = OpenGLWidget::GOURAUD;
+//    ui->actionGouraud->setChecked(true);
+//    ui->openGLWidget->shadingMode = OpenGLWidget::GOURAUD;
+    ui->actionPhong->setChecked(true);
+    ui->openGLWidget->shadingMode = OpenGLWidget::PHONG;
 
     flatShadingModeAG = new QActionGroup(this);
     flatShadingModeAG->addAction(ui->actionSmooth);
     flatShadingModeAG->addAction(ui->actionFlat);
-    ui->actionFlat->setChecked(true);
-    ui->openGLWidget->flat_flag = true;
+//    ui->actionFlat->setChecked(true);
+//    ui->openGLWidget->flat_flag = true;
+    ui->actionSmooth->setChecked(true);
+    ui->openGLWidget->flat_flag = false;
 
     textModeAG = new QActionGroup(this);
     textModeAG->addAction(ui->actionTexture);
     textModeAG->addAction(ui->actionColor);
-    ui->actionColor->setChecked(true);
-    ui->openGLWidget->textureMode = OpenGLWidget::COLOR;
+//    ui->actionColor->setChecked(true);
+//    ui->openGLWidget->textureMode = OpenGLWidget::COLOR;
+    ui->actionTexture->setChecked(true);
+    ui->openGLWidget->textureMode = OpenGLWidget::TEXTURE;
 }
 
 void MainWindow::connections()

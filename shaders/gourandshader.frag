@@ -1,4 +1,4 @@
-#version 330 core
+#version 330
 
 uniform bool flat_flag = true;
 flat in vec3 flatColor; // Resulting color from lighting calculations

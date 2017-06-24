@@ -4,97 +4,40 @@
 #include <string>
 #include <fstream>
 #include <sstream>
-#include <iostream>
-#include <QDebug>
+#include "GL/glew.h"
 
-#include <GL/glew.h>
-
-class Shader
+namespace makai
 {
-public:
-    GLuint Program;
-    // Constructor generates the shader on the fly
-    Shader(const GLchar* vertexPath, const GLchar* fragmentPath)
+    class Shader
     {
+    public:
+        enum ShaderType
+        {
+            Vertex = 0,
+            Fragment = 1
+        };
 
-        // 1. Retrieve the vertex/fragment source code from filePath
-        std::string vertexCode;
-        std::string fragmentCode;
-        std::ifstream vShaderFile;
-        std::ifstream fShaderFile;
-        // ensures ifstream objects can throw exceptions:
-        vShaderFile.exceptions (std::ifstream::failbit | std::ifstream::badbit);
-        fShaderFile.exceptions (std::ifstream::failbit | std::ifstream::badbit);
-        try
-        {
-            // Open files
-            vShaderFile.open(vertexPath);
-            fShaderFile.open(fragmentPath);
-            std::stringstream vShaderStream, fShaderStream;
-            // Read file's buffer contents into streams
-            vShaderStream << vShaderFile.rdbuf();
-            fShaderStream << fShaderFile.rdbuf();
-            // close file handlers
-            vShaderFile.close();
-            fShaderFile.close();
-            // Convert stream into string
-            vertexCode = vShaderStream.str();
-            fragmentCode = fShaderStream.str();
-        }
-        catch (std::ifstream::failure e)
-        {
-            qDebug("ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ");
-        }
-        const GLchar* vShaderCode = vertexCode.c_str();
-        const GLchar * fShaderCode = fragmentCode.c_str();
-        // 2. Compile shaders
-        GLuint vertex, fragment;
-        GLint success;
-        GLchar infoLog[512];
-        // Vertex Shader
-        vertex = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vertex, 1, &vShaderCode, NULL);
-        glCompileShader(vertex);
-        // Print compile errors if any
-        glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
-        if (!success)
-        {
-            glGetShaderInfoLog(vertex, 512, NULL, infoLog);
-            qDebug() << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog;
-        }
-        // Fragment Shader
-        fragment = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(fragment, 1, &fShaderCode, NULL);
-        glCompileShader(fragment);
-        // Print compile errors if any
-        glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
-        if (!success)
-        {
-            glGetShaderInfoLog(fragment, 512, NULL, infoLog);
-            qDebug() << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog;
-        }
-        // Shader Program
-        this->Program = glCreateProgram();
-        glAttachShader(this->Program, vertex);
-        glAttachShader(this->Program, fragment);
-        glLinkProgram(this->Program);
-        // Print linking errors if any
-        glGetProgramiv(this->Program, GL_LINK_STATUS, &success);
-        if (!success)
-        {
-            glGetProgramInfoLog(this->Program, 512, NULL, infoLog);
-            qDebug() << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog;
-        }
-        // Delete the shaders as they're linked into our program now and no longer necessery
-        glDeleteShader(vertex);
-        glDeleteShader(fragment);
+        Shader(Shader::ShaderType type);
+        ~Shader();
+        bool compileSourceCode(const std::string &source);
+        bool compileSourceFile(const std::string &fileName);
+        bool isCompiled() const;
+        std::string log() const;
+        GLuint shaderId() const;
+        Shader::ShaderType shaderType() const;
+        std::string sourceCode() const;
 
-    }
-    // Uses the current shader
-    void Use()
-    {
-        glUseProgram(this->Program);
-    }
-};
+        Shader(const Shader &other) = delete;
+        const Shader& operator=(const Shader &other) = delete;
+    private:
+        ShaderType m_type;
+        bool m_isCompiled;
+        std::string m_log;
+        GLuint m_id;
+        std::string m_code;
+
+    };
+}
+
 
 #endif // SHADER_H
