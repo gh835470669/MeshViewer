@@ -84,6 +84,11 @@ bool Shader::isCompiled() const
     return m_isCompiled;
 }
 
+std::string Shader::log() const
+{
+    return m_log;
+}
+
 GLuint Shader::shaderId() const
 {
     return m_id;

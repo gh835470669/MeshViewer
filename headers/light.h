@@ -1,31 +1,35 @@
 #ifndef LIGHT_H
 #define LIGHT_H
 
-#include <glm/vec4.hpp>
+#include <glm/glm.hpp>
 
 class Light
 {
 public:
-    Light() {
-        type = POINT;
-        homo = glm::vec4(10.0f, 5.0f, 5.0f, 1.0f);
-        ambient = glm::vec3(0.1f, 0.1f, 0.1f);
-        diffuse = glm::vec3(1.0f, 1.0f, 1.0f);
-        specular = glm::vec3(1.0f, 1.0f, 1.0f);
-    }
-
-    enum LIGHTTYPE {
-        POINT,
-        DIRECTIONAL,
-        SPOT
+    enum LightType {
+        Point,
+        Directional,
+        Spot
     };
 
-    glm::vec4 homo;
-    glm::vec3 ambient;
-    glm::vec3 diffuse;
-    glm::vec3 specular;
+    Light();
 
-    LIGHTTYPE type;
+    int type() const;
+    void setType(const LightType &type);
+    glm::vec4 direction() const;
+    void setDirection(float x, float y, float z);
+    glm::vec4 position() const;
+    void setPosition(float x, float y, float z);
+    glm::vec3 intensity() const;
+    void setColor(float r, float g, float b);
+
+private:
+    glm::vec4 m_direction;
+    glm::vec4 m_position;
+    glm::vec3 m_intensity;
+    LightType m_type;
+
+    float clamp(float input, float min, float max);
 };
 
 #endif // LIGHT_H

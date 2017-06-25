@@ -40,14 +40,14 @@ void main()
 
     //ambient lighting
     float ambientStrength = 0.1f;
-    vec3 ambient = light.ambient * (texture_flag ? texture(texture_diffuse1, texCoords).xzy : ambientStrength * objectColor);
+    vec3 ambient = light.ambient * (texture_flag ? texture(texture_diffuse1, texCoords).rgb : ambientStrength * objectColor);
 
     //diffuse lighting
     vec3 norm = normalize(Normal);
     vec3 lightDir = normalize(light.position - Position);
     float diff = max(dot(norm, lightDir), 0.0);
     float diffuseStrength = 1.0f;
-    vec3 diffuse = light.diffuse * diff * (texture_flag ? texture(texture_diffuse1, texCoords).xzy : diffuseStrength * objectColor);
+    vec3 diffuse = light.diffuse * diff * (texture_flag ? texture(texture_diffuse1, texCoords).rgb : diffuseStrength * objectColor);
 
 
     //specular lighting
@@ -62,7 +62,7 @@ void main()
     vec3 halfway = normalize(lightDir + viewDir);
     float spec = pow(max(dot(halfway, norm), 0.0), shininess);
     float specularStrength = 1.0f;
-    vec3 specular = light.specular * spec *(texture_flag ? texture(texture_specular1, texCoords).xzy : specularStrength);
+    vec3 specular = light.specular * spec *(texture_flag ? texture(texture_specular1, texCoords).rgb : specularStrength);
 
     flatColor = ambient + diffuse + specular;
     if (flat_flag == false) smoothColor = flatColor;

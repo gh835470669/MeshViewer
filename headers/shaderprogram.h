@@ -3,6 +3,7 @@
 
 #include <GL/glew.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <string>
 #include <fstream>
@@ -10,6 +11,8 @@
 #include <vector>
 
 #include "shader.h"
+
+#include <QDebug>
 
 namespace makai
 {
@@ -26,6 +29,7 @@ namespace makai
         // This allows the caller to add the same shader to multiple shader programs.
         bool addShader(Shader *shader);
         bool addShaderFromFile(Shader::ShaderType type, const std::string &fileName);
+        bool addShaderFromSourceCode(Shader::ShaderType type, const char* sourceCode);
 
         //remove the shader added by addShader()
         void removeShader(Shader *shader);
@@ -89,6 +93,28 @@ namespace makai
         void setUniform(const GLchar* uniformName, const glm::mat4& m, GLboolean transpose=GL_FALSE);
         void setUniform(const GLchar* uniformName, const glm::vec3& v);
         void setUniform(const GLchar* uniformName, const glm::vec4& v);
+
+        template <typename T>
+        void setArrayUniform(const char* arrayName, size_t index, const T& value, const char* propertyName = nullptr)
+        {
+            std::ostringstream ss;
+            if (propertyName != nullptr)
+            {
+                ss << arrayName << "[" << index << "]." << propertyName;
+            }
+            else
+            {
+                ss << arrayName << "[" << index << "]";
+            }
+            std::string uniformName = ss.str();
+            try {
+                this->setUniform(uniformName.c_str(), value);
+            }
+            catch (std::runtime_error e) {
+                qDebug() << e.what();
+            }
+
+        }
 
         ShaderProgram(const ShaderProgram &other) = delete;
         const ShaderProgram& operator=(const ShaderProgram &other) = delete;

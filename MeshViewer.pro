@@ -29,7 +29,10 @@ SOURCES += \
     src/main.cpp \
     src/shader.cpp \
     src/shaderprogram.cpp \
-    src/mesh.cpp
+    src/mesh.cpp \
+    src/light.cpp \
+    src/submesh.cpp \
+    src/gameobject.cpp
 
 HEADERS  += headers/mainwindow.h \
     headers/openglwidget.h \
@@ -37,7 +40,9 @@ HEADERS  += headers/mainwindow.h \
     headers/light.h \
     headers/shaderprogram.h \
     headers/shader.h \
-    headers/mesh.h
+    headers/mesh.h \
+    headers/submesh.h \
+    headers/gameobject.h
 
 FORMS    += mainwindow.ui
 

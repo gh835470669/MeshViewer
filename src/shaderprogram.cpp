@@ -1,6 +1,4 @@
 #include "shaderprogram.h"
-#include "shader.h"
-#include <glm/gtc/type_ptr.hpp>
 
 using namespace makai;
 
@@ -35,8 +33,30 @@ bool ShaderProgram::addShaderFromFile(Shader::ShaderType type, const std::string
 
     Shader* shader = new Shader(type);
     bool success = shader->compileSourceFile(fileName);
-    if (success) {
+
+    if (success)
+    {
         m_shaders.push_back(shader);
+    }
+    else
+    {
+        m_log += shader->log();
+    }
+    return success;
+}
+
+bool ShaderProgram::addShaderFromSourceCode(Shader::ShaderType type, const char *sourceCode)
+{
+    Shader* shader = new Shader(type);
+    bool success = shader->compileSourceCode(sourceCode);
+
+    if (success)
+    {
+        m_shaders.push_back(shader);
+    }
+    else
+    {
+        m_log += shader->log();
     }
     return success;
 }
@@ -126,11 +146,13 @@ GLint ShaderProgram::attrib(const GLchar *attribName) const
 GLint ShaderProgram::uniform(const GLchar *uniformName) const
 {
     if(!uniformName)
-            throw std::runtime_error("uniformName was NULL");
+       throw std::runtime_error("uniformName was NULL");
 
     GLint uniform = glGetUniformLocation(m_program, uniformName);
-    if(uniform == -1)
+    if(uniform == -1) {
+        qDebug() << uniformName;
         throw std::runtime_error(std::string("Program uniform not found: ") + uniformName);
+    }
 
     return uniform;
 }

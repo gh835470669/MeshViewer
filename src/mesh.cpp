@@ -36,26 +36,30 @@ bool Mesh::loadModelFromFile(const std::string &path)
     return true;
 }
 
-void Mesh::paint(ShaderProgram *shader, Light *light)
+void Mesh::addSubMesh(const SubMesh *subMesh)
 {
-    if (light != nullptr) {
-//        GLint lightAmbientLoc = glGetUniformLocationARB(shaderId, "light.ambient");
-//        GLint lightDiffuseLoc = glGetUniformLocationARB(shaderId, "light.diffuse");
-//        GLint lightSpecularLoc = glGetUniformLocationARB(shaderId, "light.specular");
-//        GLint lightPosLoc = glGetUniformLocationARB(shaderId, "light.position");
-//        glUniform3fARB(lightAmbientLoc, light->ambient.x, light->ambient.y, light->ambient.z);
-//        glUniform3fARB(lightDiffuseLoc, light->diffuse.x, light->diffuse.y, light->diffuse.z);
-//        glUniform3fARB(lightSpecularLoc, light->specular.x, light->specular.y, light->specular.z);
-//        glUniform3fARB(lightPosLoc, 10.0f, 5.0f, 5.0f);
+    SubMesh* newMesh = new SubMesh(*subMesh);
+    m_meshes.push_back(newMesh);
+}
 
-        shader->setUniform("light.ambient", light->ambient);
-        shader->setUniform("light.diffuse", light->diffuse);
-        shader->setUniform("light.specular", light->specular);
-        shader->setUniform("light.position", 10.0f, 5.0f, 5.0f);
-        shader->setUniform("shininess", 32.0f);
+void Mesh::addTexture(const Texture &texture)
+{
+    m_textures.push_back(texture);
+}
+
+void Mesh::paint(ShaderProgram *shader, const std::vector<Light> &lights)
+{
+
+    shader->setUniform("numLights", (int)lights.size());
+    for (unsigned i = 0; i < lights.size(); i++)
+    {
+        shader->setArrayUniform("allLights", i, lights.at(i).intensity(), "intensity");
+        shader->setArrayUniform("allLights", i, lights.at(i).position(), "position");
+        shader->setArrayUniform("allLights", i, 0.1f, "attenuation");
     }
 
-    for (size_t i = 0; i < m_meshes.size(); i++) {
+    for (size_t i = 0; i < m_meshes.size(); i++)
+    {
         // Bind appropriate textures
         for(GLuint j = 0; j < m_meshes.at(i)->texIndices.size(); j++)
         {
@@ -116,12 +120,15 @@ void Mesh::deleteBuffers()
 void Mesh::clear()
 {
     deleteBuffers();
+    for (unsigned i = 0; i < m_meshes.size(); i++) {
+        delete m_meshes.at(i);
+    }
     m_meshes.clear();
     directoryOfTex.clear();
     m_textures.clear();
 }
 
-void Mesh::genVertexBuffers(Submesh &mesh)
+void Mesh::genVertexBuffers(SubMesh &mesh)
 {
     // Create buffers/arrays
     glGenVertexArrays(1, &mesh.VAO);
@@ -135,22 +142,22 @@ void Mesh::genVertexBuffers(Submesh &mesh)
     // A great thing about structs is that their memory layout is sequential for all its items.
     // The effect is that we can simply pass a pointer to the struct and it translates perfectly to a glm::vec3/2 array which
     // again translates to 3/2 floats which translates to a byte array.
-    glBufferDataARB(GL_ARRAY_BUFFER, mesh.vertices.size() * sizeof(VertexAttr), &(mesh.vertices[0]), GL_STATIC_DRAW_ARB);
+    glBufferDataARB(GL_ARRAY_BUFFER, mesh.vertices.size() * sizeof(float), &(mesh.vertices[0]), GL_STATIC_DRAW_ARB);
 
     glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
-    glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER, mesh.indices.size() * sizeof(GLuint), &(mesh.indices[0]), GL_STATIC_DRAW_ARB);
+    glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER, mesh.indices.size() * sizeof(unsigned), &(mesh.indices[0]), GL_STATIC_DRAW_ARB);
 
     // Set the vertex attribute pointers
 
     // Vertex Positions
     glEnableVertexAttribArrayARB(0);
-    glVertexAttribPointerARB(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexAttr), (GLvoid*)offsetof(VertexAttr, Position));
+    glVertexAttribPointerARB(0, 3, GL_FLOAT, GL_FALSE, mesh.step * sizeof(float), (GLvoid*)0);
     // Vertex Normals
     glEnableVertexAttribArrayARB(1);
-    glVertexAttribPointerARB(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexAttr), (GLvoid*)offsetof(VertexAttr, Normal));
+    glVertexAttribPointerARB(1, 3, GL_FLOAT, GL_FALSE, mesh.step * sizeof(float), (GLvoid*)(sizeof(float) * 3));
     // Vertex Texture Coords
     glEnableVertexAttribArrayARB(2);
-    glVertexAttribPointerARB(2, 2, GL_FLOAT, GL_FALSE, sizeof(VertexAttr), (GLvoid*)offsetof(VertexAttr, TexCoords));
+    glVertexAttribPointerARB(2, 2, GL_FLOAT, GL_FALSE, mesh.step * sizeof(float), (GLvoid*)(sizeof(float) * 6));
 
     glBindVertexArray(0);
 }
@@ -198,42 +205,40 @@ void Mesh::processNode(const aiNode *node, const aiScene *scene)
     }
 }
 
-Submesh *Mesh::processMesh(const aiMesh *mesh, const aiScene *scene)
+SubMesh *Mesh::processMesh(const aiMesh *mesh, const aiScene *scene)
 {
     // Data to fill
-    std::vector<VertexAttr> vertices;
+    std::vector<float> vertices;
     std::vector<GLuint> indices;
     std::vector<GLuint> texIndices;
 
     // Walk through each of the mesh's vertices
     for(GLuint i = 0; i < mesh->mNumVertices; i++)
     {
-        VertexAttr vertex;
-        glm::vec3 vector; // We declare a placeholder vector since assimp uses its own vector class that doesn't directly convert to glm's vec3 class so we transfer the data to this placeholder glm::vec3 first.
         // Positions
-        vector.x = mesh->mVertices[i].x;
-        vector.y = mesh->mVertices[i].y;
-        vector.z = mesh->mVertices[i].z;
-        vertex.Position = vector;
+        vertices.push_back(mesh->mVertices[i].x);
+        vertices.push_back(mesh->mVertices[i].y);
+        vertices.push_back(mesh->mVertices[i].z);
+
         // Normals
-        vector.x = mesh->mNormals[i].x;
-        vector.y = mesh->mNormals[i].y;
-        vector.z = mesh->mNormals[i].z;
-        vertex.Normal = vector;
+        vertices.push_back(mesh->mNormals[i].x);
+        vertices.push_back(mesh->mNormals[i].y);
+        vertices.push_back(mesh->mNormals[i].z);
+
         // Texture Coordinates
         if(mesh->HasTextureCoords(0)) // Does the mesh contain texture coordinates?
         {
-            glm::vec2 vec;
             // A vertex can contain up to 8 different texture coordinates. We thus make the assumption that we won't
             // use models where a vertex can have multiple texture coordinates so we always take the first set (0).
-            vec.x = mesh->mTextureCoords[0][i].x;
-            vec.y = mesh->mTextureCoords[0][i].y;
-            vertex.TexCoords = vec;
+            vertices.push_back(mesh->mTextureCoords[0][i].x);
+            vertices.push_back(mesh->mTextureCoords[0][i].y);
         }
         else
-            vertex.TexCoords = glm::vec2(0.0f, 0.0f);
+        {
+            vertices.push_back(0.0f);
+            vertices.push_back(0.0f);
+        }
 
-        vertices.push_back(vertex);
     }
 
     // Now wak through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
@@ -265,7 +270,7 @@ Submesh *Mesh::processMesh(const aiMesh *mesh, const aiScene *scene)
     }
 
     // Return a mesh object created from the extracted mesh data
-    return new Submesh(vertices, indices, texIndices);
+    return new SubMesh(vertices, indices, texIndices, 8);
 }
 
 std::vector<GLuint> Mesh::loadMaterialTextures(const aiMaterial *mat, aiTextureType type)

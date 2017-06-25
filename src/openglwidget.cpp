@@ -3,18 +3,30 @@
 
 OpenGLWidget::OpenGLWidget(QWidget* parent) : QOpenGLWidget(parent),
     phongShader(0), gourandShader(0), curShader(0),
-    camera(glm::vec3(0.0f, 8.0f, 20.0f))
+    camera(glm::vec3(0.0f, 0.0f, 5.0f)),
+    lights(), builtInMeshes(), builtInObjects()
 {
-
+    Light light;
+    light.setPosition(1.0f, 1.0f, 1.0f);
+    lights.push_back(light);
+    light.setPosition(-1.0f, 1.0f, 1.0f);
+    lights.push_back(light);
 }
 
-OpenGLWidget::~OpenGLWidget(){
+OpenGLWidget::~OpenGLWidget() {
     makeCurrent();
+
+    for(unsigned i = 0; i < builtInMeshes.size(); i++)
+        delete builtInMeshes[i];
+
+    for(unsigned i = 0; i < builtInObjects.size(); i++)
+        delete builtInObjects[i];
 
     curShader = 0;
     delete phongShader;
     delete gourandShader;
-    mesh.deleteBuffers();
+    delete lightProgram;
+    mesh.clear();
 
     doneCurrent();
 }
@@ -49,12 +61,25 @@ void OpenGLWidget::initializeGL() {
     if (!gourandShader->link())
         qDebug() << gourandShader->log().data();
 
+    lightProgram = new ShaderProgram();
+    if (!lightProgram->addShaderFromSourceCode(Shader::Vertex, lightVertShaderSource))
+        qDebug() << lightProgram->log().data();
+    if (!lightProgram->addShaderFromSourceCode(Shader::Fragment, lightFraShaderSource))
+        qDebug() << lightProgram->log().data();
+    if (!lightProgram->link())
+        qDebug() << lightProgram->log().data();
+
     glEnable(GL_DEPTH_TEST);
     glClearColor(100 / 255.0f, 100 / 255.0f, 200 / 255.0f, 1.0f);
 
     //for debug
+    // sphere.dae nanosuit/nanosuit.obj
     mesh.loadModelFromFile((QDir::currentPath() + "/models/nanosuit/nanosuit.obj").toStdString());
     mesh.genBuffers();
+
+    setBuiltInObject();
+    for(unsigned i = 0; i < builtInMeshes.size(); i++)
+        builtInMeshes.at(i)->genBuffers();
 }
 
 void OpenGLWidget::resizeGL(int w, int h) {
@@ -142,6 +167,13 @@ void OpenGLWidget::onTextureModeChanged(QAction *mode)
 void OpenGLWidget::paintGL() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    t += 0.05f;
+    if (t > 3.0f) t = 0.0f;
+//    glm::vec3 l(1.0f, 1.0f, 1.0f);
+//    lights.at(0).setPosition(l.x + t, l.y + t, l.y + t);
+//    l.x = -1.0f;
+//    lights.at(1).setPosition(l.x + -t, l.y + t, l.y + t);
+
     switch (shadingMode)
     {
         case GOURAUD:
@@ -155,9 +187,15 @@ void OpenGLWidget::paintGL() {
             break;
     }
 
+    paintLights();
+
     curShader->bind();
 
     uploadMatrices();
+
+    //upload ambient
+    curShader->setUniform("ambientLight", lightAmbient.x(), lightAmbient.y(),
+                          lightAmbient.z());
 
     //texture or color
     bool texture_flag = false;
@@ -167,31 +205,30 @@ void OpenGLWidget::paintGL() {
         texture_flag = false;
 
     curShader->setUniform("texture_flag", texture_flag);
-    curShader->setUniform("objectColor", 1.0f, 1.0f, 1.0f);
+    curShader->setUniform("material.diffuse", 1.0f, 1.0f, 1.0f);
 
     //flat or smooth
     curShader->setUniform("flat_flag", flat_flag);
 
-    Light light;
     //fill, wireFrame or fillLine
     switch (displayMode)
     {
         case FILL:
             glPolygonMode(GL_FRONT, GL_FILL);
-            mesh.paint(curShader, &light);
+            mesh.paint(curShader, lights);
             break;
         case FILLLINES: //draw twice : FILL and LINE
             glPolygonMode(GL_FRONT, GL_FILL);
-            mesh.paint(curShader, &light);
+            mesh.paint(curShader, lights);
 
             curShader->setUniform("texture_flag", false);
-            curShader->setUniform("objectColor", 0.0f, 0.0f, 0.0f);
+            curShader->setUniform("material.diffuse", 0.0f, 0.0f, 0.0f);
             glPolygonMode(GL_FRONT, GL_LINE);
-            mesh.paint(curShader, &light);
+            mesh.paint(curShader, lights);
             break;
         case WIREFRAME:
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-            mesh.paint(curShader, &light);
+            mesh.paint(curShader, lights);
             break;
         default:
             break;
@@ -311,6 +348,117 @@ void OpenGLWidget::uploadMatrices()
     curShader->setUniformMatrix4("view_inv", glm::value_ptr(glm::inverse(camera.GetViewMatrix())), 1, GL_FALSE);
     curShader->setUniformMatrix4("projection", matrixProjection.data(), 1, GL_FALSE);
     curShader->setUniformMatrix4("model", matrixModel.data(), 1, GL_FALSE);
+}
+
+void OpenGLWidget::setBuiltInObject()
+{
+    float vertices[] = {
+        // positions          // normals           // texture coords
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
+         0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  0.0f,
+         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
+         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
+
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+         0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+
+         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+         0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
+         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+         0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
+         0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  1.0f,
+         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
+         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
+
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f,
+         0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  1.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f
+    };
+    int size = sizeof(vertices) / sizeof(float);
+    std::vector<float> v(vertices, vertices + size);
+    std::vector<unsigned> indices(size);
+    for (int i = 0; i < size; i++) indices[i] = i;
+    std::vector<unsigned> texIndices;
+    texIndices.push_back(0);
+    SubMesh sm(v, indices, texIndices, size);
+
+    initLightVAO(v);
+
+    Mesh* m = new Mesh();
+    m->addSubMesh(&sm);
+
+    Texture t;
+    t.fileName = "models/textures/container2.png";
+    t.type = TextureType::diffuse;
+    m->addTexture(t);
+    t.fileName = "models/textures/container2_specular.png";
+    t.type = TextureType::specular;
+    m->addTexture(t);
+    builtInMeshes.push_back(m);
+
+    GameObject* gameObject = new GameObject();
+    gameObject->setMesh(m);
+    gameObject->setShaderProgram(lightProgram);
+
+    builtInObjects.push_back(gameObject);
+}
+
+void OpenGLWidget::initLightVAO(const std::vector<float> &v)
+{
+    unsigned int VBO;
+    glGenVertexArrays(1, &lightVAO);
+    glGenBuffers(1, &VBO);
+
+    glBindVertexArray(lightVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+    glBufferData(GL_ARRAY_BUFFER, v.size() * sizeof(float), &v[0], GL_STATIC_DRAW);
+
+    // note that we update the lamp's position attribute's stride to reflect the updated buffer data
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindVertexArray(0);
+}
+
+void OpenGLWidget::paintLights()
+{
+    lightProgram->bind();
+    lightProgram->setUniformMatrix4("projection", matrixProjection.data(), 1, GL_FALSE);
+    lightProgram->setUniform("view", camera.GetViewMatrix());
+    glBindVertexArray(lightVAO);
+    for (unsigned i = 0 ; i < lights.size(); i++) {
+        glm::mat4 model;
+        model = glm::translate(model, glm::vec3(lights.at(i).position()));
+        model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
+        lightProgram->setUniform("model", model);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+    }
+
+    glBindVertexArray(0);
+    lightProgram->release();
 }
 
 
