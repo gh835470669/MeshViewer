@@ -40,3 +40,8 @@ ___
 * ctrl + left mouse button ： Translation
 * ctrl + right mouse button : Rotation about Y-axis
 * ctrl + middle mouse button : Scalling
+
+## MultiLights
+| 1 | 2 |
+| ---- | ---- |
+|![](/readme/multiLights1.png "1") | ![](/readme/multiLights2.png "2") |
