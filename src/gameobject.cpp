@@ -2,7 +2,7 @@
 
 using namespace makai;
 
-GameObject::GameObject() : m_position(0), m_scalar(1), m_rotation(0)
+GameObject::GameObject() : m_position(0), m_scalar(1), m_rotation()
 {
 
 }
@@ -27,14 +27,17 @@ void GameObject::setScalar(const glm::vec3 &scalar)
     m_scalar = scalar;
 }
 
-glm::vec3 GameObject::rotation() const
-{
-    return m_rotation;
-}
-
 void GameObject::setRotation(const glm::vec3 &rotation)
 {
-    m_rotation = rotation;
+    glm::quat qx = glm::angleAxis(glm::radians(rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+    glm::quat qy = glm::angleAxis(glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::quat qz = glm::angleAxis(glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+    m_rotation = qy * qx * qz;
+}
+
+void GameObject::setRotation(float x, float y, float z)
+{
+    setRotation(glm::vec3(x, y, z));
 }
 
 void GameObject::setMesh(Mesh *mesh)
@@ -51,17 +54,21 @@ void GameObject::paint(const std::vector<Light> &lights)
 {
     glm::mat4 model = glm::translate(glm::mat4( 1.0f ), m_position);
     model = glm::scale(model, m_scalar);
-    model = glm::rotate(model, glm::radians(m_rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
-    model = glm::rotate(model, glm::radians(m_rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-    model = glm::rotate(model, glm::radians(m_rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+    model = model * glm::mat4_cast(m_rotation);
 
+    if (m_shaderProgram == nullptr || m_mesh == nullptr) return;
     m_shaderProgram->bind();
     m_shaderProgram->setUniform("model", model);
     m_mesh->paint(m_shaderProgram, lights);
-    m_shaderProgram->release();
 }
 
 ShaderProgram *GameObject::shaderProgram()
 {
     return m_shaderProgram;
+}
+
+void GameObject::rotate(float angle, glm::vec3 axis)
+{
+    glm::quat q = glm::angleAxis(glm::radians(-angle), glm::normalize(axis));
+    m_rotation = q * m_rotation;
 }

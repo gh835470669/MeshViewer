@@ -5,6 +5,7 @@
 
 namespace makai
 {
+    //This is a data class, just like a struct
     class SubMesh
     {
     public:
@@ -25,7 +26,5 @@ namespace makai
         std::vector<unsigned> texIndices;
     };
 }
-
-
 
 #endif // SUBMESH_H

@@ -36,10 +36,9 @@ bool Mesh::loadModelFromFile(const std::string &path)
     return true;
 }
 
-void Mesh::addSubMesh(const SubMesh *subMesh)
+void Mesh::addSubMesh(const SubMesh &subMesh)
 {
-    SubMesh* newMesh = new SubMesh(*subMesh);
-    m_meshes.push_back(newMesh);
+    m_meshes.push_back(subMesh);
 }
 
 void Mesh::addTexture(const Texture &texture)
@@ -55,17 +54,17 @@ void Mesh::paint(ShaderProgram *shader, const std::vector<Light> &lights)
     {
         shader->setArrayUniform("allLights", i, lights.at(i).intensity(), "intensity");
         shader->setArrayUniform("allLights", i, lights.at(i).position(), "position");
-        shader->setArrayUniform("allLights", i, 0.1f, "attenuation");
+        shader->setArrayUniform("allLights", i, 0.01f, "attenuation");
     }
 
     for (size_t i = 0; i < m_meshes.size(); i++)
     {
         // Bind appropriate textures
-        for(GLuint j = 0; j < m_meshes.at(i)->texIndices.size(); j++)
+        for(GLuint j = 0; j < m_meshes.at(i).texIndices.size(); j++)
         {
-            GLuint index = m_meshes.at(i)->texIndices.at(j);
+            GLuint index = m_meshes.at(i).texIndices.at(j);
             // Active proper texture unit before binding
-            glActiveTextureARB(GL_TEXTURE0 + j);
+            GL_CHECK ( glActiveTexture(GL_TEXTURE0 + j) );
 
             // Retrieve texture number (the N in diffuse_textureN)
             // here, i assume N is always 1
@@ -75,30 +74,32 @@ void Mesh::paint(ShaderProgram *shader, const std::vector<Light> &lights)
             else if (m_textures.at(index).type == TextureType::specular)
                 nameAttr = "texture_specular1";
 
-            shader->setUniform(nameAttr.c_str(), j);
+            shader->setUniform(nameAttr.c_str(), (int)j);
 
             // And finally bind the texture
-            glBindTexture(GL_TEXTURE_2D, m_textures.at(index).objectId);
-
+            GL_CHECK ( glBindTexture(GL_TEXTURE_2D, m_textures.at(index).objectId) );
         }
 
-        glBindVertexArray(m_meshes.at(i)->VAO);
-        glDrawElements(GL_TRIANGLES, m_meshes.at(i)->indices.size(), GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
+        GL_CHECK( glBindVertexArray(m_meshes.at(i).VAO) );
+        GL_CHECK( glDrawElements(GL_TRIANGLES, m_meshes.at(i).indices.size(), GL_UNSIGNED_INT, 0) );
+        GL_CHECK( glBindVertexArray(0) );
 
         // Always good practice to set everything back to defaults once configured.
-        for (GLuint i = 0; i < m_meshes.at(i)->texIndices.size(); i++)
+        for (GLuint j = 0; j < m_meshes.at(i).texIndices.size(); j++)
         {
-            glActiveTextureARB(GL_TEXTURE0 + i);
-            glBindTexture(GL_TEXTURE_2D, 0);
+            GL_CHECK( glActiveTexture(GL_TEXTURE0 + j) );
+            GL_CHECK( glBindTexture(GL_TEXTURE_2D, 0) );
         }
+        // always good practice to set everything back to defaults once configured.
+        //GL_CHECK( glActiveTexture(GL_TEXTURE0) );
+
     }
 }
 
 void Mesh::genBuffers()
 {
     for (size_t i = 0; i < m_meshes.size(); i++) {
-        genVertexBuffers(*m_meshes.at(i));
+        genVertexBuffers(m_meshes.at(i));
     }
     for (auto& t : m_textures) {
         t.objectId = textureFromFile(t.fileName);
@@ -107,22 +108,24 @@ void Mesh::genBuffers()
 
 void Mesh::deleteBuffers()
 {
+
     for (size_t i = 0; i < m_meshes.size(); i++) {
-        glDeleteBuffersARB(1, &(m_meshes.at(i)->VBO));
-        glDeleteBuffersARB(1, &(m_meshes.at(i)->EBO));
-        glDeleteVertexArrays(1, &(m_meshes.at(i)->VAO));
+        GL_CHECK (glDeleteBuffersARB(1, &(m_meshes.at(i).VBO)) );
+        GL_CHECK (glDeleteBuffersARB(1, &(m_meshes.at(i).EBO)) );
+        GL_CHECK (glDeleteVertexArrays(1, &(m_meshes.at(i).VAO)) );
     }
+
     for (size_t i = 0; i < m_textures.size(); i++) {
-        glDeleteTextures(1, &(m_textures.at(i).objectId));
+        GL_CHECK( glDeleteTextures(1, &(m_textures.at(i).objectId)) );
     }
+
+
+
 }
 
 void Mesh::clear()
 {
     deleteBuffers();
-    for (unsigned i = 0; i < m_meshes.size(); i++) {
-        delete m_meshes.at(i);
-    }
     m_meshes.clear();
     directoryOfTex.clear();
     m_textures.clear();
@@ -132,55 +135,68 @@ void Mesh::genVertexBuffers(SubMesh &mesh)
 {
     // Create buffers/arrays
     glGenVertexArrays(1, &mesh.VAO);
-    glGenBuffersARB(1, &mesh.VBO);
-    glGenBuffersARB(1, &mesh.EBO);
+    glGenBuffers(1, &mesh.VBO);
+    glGenBuffers(1, &mesh.EBO);
 
     glBindVertexArray(mesh.VAO);
 
     // Load data into vertex buffers
-    glBindBufferARB(GL_ARRAY_BUFFER, mesh.VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, mesh.VBO);
     // A great thing about structs is that their memory layout is sequential for all its items.
     // The effect is that we can simply pass a pointer to the struct and it translates perfectly to a glm::vec3/2 array which
     // again translates to 3/2 floats which translates to a byte array.
-    glBufferDataARB(GL_ARRAY_BUFFER, mesh.vertices.size() * sizeof(float), &(mesh.vertices[0]), GL_STATIC_DRAW_ARB);
+    glBufferData(GL_ARRAY_BUFFER, mesh.vertices.size() * sizeof(float), &(mesh.vertices[0]), GL_STATIC_DRAW);
 
-    glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
-    glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER, mesh.indices.size() * sizeof(unsigned), &(mesh.indices[0]), GL_STATIC_DRAW_ARB);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh.indices.size() * sizeof(unsigned), &(mesh.indices[0]), GL_STATIC_DRAW);
 
     // Set the vertex attribute pointers
 
     // Vertex Positions
-    glEnableVertexAttribArrayARB(0);
-    glVertexAttribPointerARB(0, 3, GL_FLOAT, GL_FALSE, mesh.step * sizeof(float), (GLvoid*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, mesh.step * sizeof(float), (GLvoid*)0);
     // Vertex Normals
-    glEnableVertexAttribArrayARB(1);
-    glVertexAttribPointerARB(1, 3, GL_FLOAT, GL_FALSE, mesh.step * sizeof(float), (GLvoid*)(sizeof(float) * 3));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, mesh.step * sizeof(float), (GLvoid*)(sizeof(float) * 3));
     // Vertex Texture Coords
-    glEnableVertexAttribArrayARB(2);
-    glVertexAttribPointerARB(2, 2, GL_FLOAT, GL_FALSE, mesh.step * sizeof(float), (GLvoid*)(sizeof(float) * 6));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, mesh.step * sizeof(float), (GLvoid*)(sizeof(float) * 6));
 
     glBindVertexArray(0);
 }
 
 GLuint Mesh::textureFromFile(const std::string &fileName)
 {
+//    return SOIL_load_OGL_texture(fileName.c_str(), SOIL_LOAD_RGB,
+//                                 SOIL_CREATE_NEW_ID,
+//                                 SOIL_FLAG_MIPMAPS);
+
     //Generate texture ID and load texture data
    GLuint textureID;
    glGenTextures(1, &textureID);
-   int width,height;
-   unsigned char* image = SOIL_load_image(fileName.c_str(), &width, &height, 0, SOIL_LOAD_RGB);
+   int width,height, channel;
+   unsigned char* image = SOIL_load_image(fileName.c_str(), &width, &height, &channel, SOIL_LOAD_AUTO);
+   GLenum format;
+   if (channel == 1)
+        format = GL_RED;
+   else if (channel == 3)
+        format = GL_RGB;
+   else if (channel == 4)
+        format = GL_RGBA;
+
    // Assign texture to ID
    glBindTexture(GL_TEXTURE_2D, textureID);
 
-   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+   glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, image);
    glGenerateMipmap(GL_TEXTURE_2D);
 
    // Parameters
-   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
-   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
-   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR );
+   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-   glBindTexture(GL_TEXTURE_2D, 0);
+
+   GL_CHECK( glBindTexture(GL_TEXTURE_2D, 0) );
    SOIL_free_image_data(image);
 
    return textureID;
@@ -205,7 +221,7 @@ void Mesh::processNode(const aiNode *node, const aiScene *scene)
     }
 }
 
-SubMesh *Mesh::processMesh(const aiMesh *mesh, const aiScene *scene)
+SubMesh Mesh::processMesh(const aiMesh *mesh, const aiScene *scene)
 {
     // Data to fill
     std::vector<float> vertices;
@@ -270,7 +286,7 @@ SubMesh *Mesh::processMesh(const aiMesh *mesh, const aiScene *scene)
     }
 
     // Return a mesh object created from the extracted mesh data
-    return new SubMesh(vertices, indices, texIndices, 8);
+    return SubMesh(vertices, indices, texIndices, 8);
 }
 
 std::vector<GLuint> Mesh::loadMaterialTextures(const aiMaterial *mat, aiTextureType type)

@@ -3,6 +3,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 #include "mesh.h"
 
@@ -19,8 +20,8 @@ namespace makai
         glm::vec3 scalar() const;
         void setScalar(const glm::vec3 &scalar);
 
-        glm::vec3 rotation() const;
         void setRotation(const glm::vec3 &rotation);
+        void setRotation(float x, float y, float z);
 
         void setMesh(Mesh *mesh);
 
@@ -29,6 +30,9 @@ namespace makai
         void paint(const std::vector<Light> &lights);
         ShaderProgram *shaderProgram();
 
+        //World Space
+        //angle : degree
+        void rotate(float angle, glm::vec3 axis);
     private:
         //the ownership of Mesh is not this gameObject, temperatly
         Mesh *m_mesh;
@@ -37,7 +41,7 @@ namespace makai
 
         glm::vec3 m_position;
         glm::vec3 m_scalar;
-        glm::vec3 m_rotation;
+        glm::quat m_rotation;
     };
 }
 

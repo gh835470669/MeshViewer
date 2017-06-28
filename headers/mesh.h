@@ -15,6 +15,7 @@
 #include "shaderprogram.h"
 #include "light.h"
 #include "submesh.h"
+#include "makaidebug.h"
 
 namespace makai
 {
@@ -41,7 +42,7 @@ namespace makai
         // and stores the resulting meshes in the meshes vector.
         bool loadModelFromFile(const std::string &path);
 
-        void addSubMesh(const SubMesh* subMesh);
+        void addSubMesh(const SubMesh &subMesh);
         void addTexture(const Texture& texture);
 
         //call for rendering
@@ -57,9 +58,12 @@ namespace makai
         void clear();
 
         static GLuint textureFromFile(const std::string &fileName);
+
+        Mesh(const Mesh& other) = delete;
+        const Mesh &operator=(const Mesh &other) const = delete;
     private:
         /*  Model Data  */
-        std::vector<SubMesh*> m_meshes;
+        std::vector<SubMesh> m_meshes;
         /*  the directory containing texture images  */
         std::string directoryOfTex;
         // Stores all the textures loaded so far,
@@ -74,7 +78,7 @@ namespace makai
         // Processes a node in a recursive fashion.
         // Processes each individual mesh located at the node and repeats this process on its children nodes (if any).
         void processNode(const aiNode *node, const aiScene* scene);
-        SubMesh *processMesh(const aiMesh* mesh, const aiScene* scene);
+        SubMesh processMesh(const aiMesh* mesh, const aiScene* scene);
 
         // Checks all material textures of a given type and loads the textures if they're not loaded yet.
         // The required info is returned as a Texture struct.

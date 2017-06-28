@@ -32,7 +32,8 @@ SOURCES += \
     src/mesh.cpp \
     src/light.cpp \
     src/submesh.cpp \
-    src/gameobject.cpp
+    src/gameobject.cpp \
+    src/makaidebug.cpp
 
 HEADERS  += headers/mainwindow.h \
     headers/openglwidget.h \
@@ -42,7 +43,8 @@ HEADERS  += headers/mainwindow.h \
     headers/shader.h \
     headers/mesh.h \
     headers/submesh.h \
-    headers/gameobject.h
+    headers/gameobject.h \
+    headers/makaidebug.h
 
 FORMS    += mainwindow.ui
 

@@ -2,48 +2,48 @@
 
 
 OpenGLWidget::OpenGLWidget(QWidget* parent) : QOpenGLWidget(parent),
-    phongShader(0), gourandShader(0), curShader(0),
-    camera(glm::vec3(0.0f, 0.0f, 5.0f)),
+    phongShader(0), gourandShader(0), curShader(0), lightProgram(0),
+    camera(glm::vec3(0.0f, 0.0f, 6.0f)),
     lights(), builtInMeshes(), builtInObjects()
 {
     Light light;
-    light.setPosition(1.0f, 1.0f, 1.0f);
+    light.setPosition(2.0f, 2.0f, 2.0f);
     lights.push_back(light);
-    light.setPosition(-1.0f, 1.0f, 1.0f);
-    lights.push_back(light);
+
 }
 
 OpenGLWidget::~OpenGLWidget() {
     makeCurrent();
 
-    for(unsigned i = 0; i < builtInMeshes.size(); i++)
-        delete builtInMeshes[i];
-
-    for(unsigned i = 0; i < builtInObjects.size(); i++)
-        delete builtInObjects[i];
-
     curShader = 0;
     delete phongShader;
     delete gourandShader;
     delete lightProgram;
-    mesh.clear();
+
+    for (unsigned i = 0; i< builtInMeshes.size(); i++)
+        delete builtInMeshes.at(i);
+
+    for (unsigned i = 0; i < builtInObjects.size(); i++)
+        delete builtInObjects.at(i);
 
     doneCurrent();
 }
 
 void OpenGLWidget::initializeGL() {
-    qDebug()<< QDir::currentPath();
-
-    qDebug("%d", context()->format().version().first);
-    qDebug("%d", context()->format().version().second);
-    qDebug("%d", context()->format().profile());
+#ifdef _DEBUG
+    qDebug()<< QDir::currentPath();\
+    qDebug("OpenGL Version min %d", context()->format().version().first);\
+    qDebug("OpenGL Version major %d", context()->format().version().second);\
+    qDebug("OpenGL profile %d", context()->format().profile());
+#endif
 
     glewExperimental = true;
     GLenum err = glewInit();
+#ifdef _DEBUG
     if (GLEW_OK != err){
         qDebug("GLEW Error: %s\n", glewGetErrorString(err));
     }
-
+#endif
 
     phongShader = new ShaderProgram();
     if (!phongShader->addShaderFromFile(Shader::Vertex, "shaders/shader.vert"))
@@ -70,16 +70,20 @@ void OpenGLWidget::initializeGL() {
         qDebug() << lightProgram->log().data();
 
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_TEXTURE_2D);
     glClearColor(100 / 255.0f, 100 / 255.0f, 200 / 255.0f, 1.0f);
 
     //for debug
     // sphere.dae nanosuit/nanosuit.obj
-    mesh.loadModelFromFile((QDir::currentPath() + "/models/nanosuit/nanosuit.obj").toStdString());
-    mesh.genBuffers();
+    Mesh* mesh = new Mesh();
+    GameObject* gameObject = new GameObject();
+    //mesh->loadModelFromFile((QDir::currentPath() + "/models/nanosuit/nanosuit.obj").toStdString());
+    //mesh->genBuffers();
+    gameObject->setMesh(mesh);
+    builtInMeshes.push_back(mesh);
+    builtInObjects.push_back(gameObject);
 
     setBuiltInObject();
-    for(unsigned i = 0; i < builtInMeshes.size(); i++)
-        builtInMeshes.at(i)->genBuffers();
 }
 
 void OpenGLWidget::resizeGL(int w, int h) {
@@ -88,7 +92,7 @@ void OpenGLWidget::resizeGL(int w, int h) {
     matrixProjection.setToIdentity();
     matrixModel.setToIdentity();
 
-    matrixProjection.perspective(camera.Zoom, (float)this->width() / this->height(), 0.1f, 100.0f);
+    matrixProjection.perspective(camera.fiewOfView, (float)this->width() / this->height(), 0.1f, 100.0f);
 }
 
 void OpenGLWidget::openfile()
@@ -110,9 +114,9 @@ void OpenGLWidget::openfile()
 
     if (!modelFilename.isEmpty()) {
         makeCurrent();
-        mesh.clear();
-        mesh.loadModelFromFile(modelFilename.toStdString());
-        mesh.genBuffers();
+        builtInMeshes.at(0)->clear();
+        builtInMeshes.at(0)->loadModelFromFile(modelFilename.toStdString());
+        builtInMeshes.at(0)->genBuffers();
     }
 }
 
@@ -167,13 +171,6 @@ void OpenGLWidget::onTextureModeChanged(QAction *mode)
 void OpenGLWidget::paintGL() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    t += 0.05f;
-    if (t > 3.0f) t = 0.0f;
-//    glm::vec3 l(1.0f, 1.0f, 1.0f);
-//    lights.at(0).setPosition(l.x + t, l.y + t, l.y + t);
-//    l.x = -1.0f;
-//    lights.at(1).setPosition(l.x + -t, l.y + t, l.y + t);
-
     switch (shadingMode)
     {
         case GOURAUD:
@@ -210,30 +207,45 @@ void OpenGLWidget::paintGL() {
     //flat or smooth
     curShader->setUniform("flat_flag", flat_flag);
 
+
     //fill, wireFrame or fillLine
     switch (displayMode)
     {
         case FILL:
-            glPolygonMode(GL_FRONT, GL_FILL);
-            mesh.paint(curShader, lights);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            for (unsigned i = 0; i < builtInObjects.size(); i++)
+            {
+                builtInObjects.at(i)->setShaderProgram(curShader);
+                builtInObjects.at(i)->paint(lights);
+            }
             break;
         case FILLLINES: //draw twice : FILL and LINE
-            glPolygonMode(GL_FRONT, GL_FILL);
-            mesh.paint(curShader, lights);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            for (unsigned i = 0; i < builtInObjects.size(); i++)
+            {
+                builtInObjects.at(i)->setShaderProgram(curShader);
+                builtInObjects.at(i)->paint(lights);
+            }
 
             curShader->setUniform("texture_flag", false);
             curShader->setUniform("material.diffuse", 0.0f, 0.0f, 0.0f);
-            glPolygonMode(GL_FRONT, GL_LINE);
-            mesh.paint(curShader, lights);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            for (unsigned i = 0; i < builtInObjects.size(); i++)
+            {
+                builtInObjects.at(i)->paint(lights);
+            }
             break;
         case WIREFRAME:
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-            mesh.paint(curShader, lights);
+            for (unsigned i = 0; i < builtInObjects.size(); i++)
+            {
+                builtInObjects.at(i)->setShaderProgram(curShader);
+                builtInObjects.at(i)->paint(lights);
+            }
             break;
         default:
             break;
     }
-
     curShader->release();
 
     update();
@@ -241,38 +253,50 @@ void OpenGLWidget::paintGL() {
 
 void OpenGLWidget::keyPressEvent(QKeyEvent* event)
 {
-    if (event->key() == Qt::Key_Control)
+    const int deltaTime = 1;
+
+    switch (event->key())
     {
-        qDebug() << "Qt::Key_Control Pressed in" << this->objectName();
-        isControlPressing = true;
-        event->accept();
+    case Qt::Key_Up:
+    case Qt::Key_Space:
+        camera.move(Camera::UP, deltaTime);
+        break;
+    case Qt::Key_Down:
+    case Qt::Key_Control:
+        camera.move(Camera::DOWN, deltaTime);
+        break;
+    case Qt::Key_W:
+        camera.move(Camera::FORWARD, deltaTime);
+        break;
+    case Qt::Key_S:
+        camera.move(Camera::BACKWARD, deltaTime);
+        break;
+    case Qt::Key_A:
+        camera.move(Camera::LEFT, deltaTime);
+        break;
+    case Qt::Key_D:
+        camera.move(Camera::RIGHT, deltaTime);
+        break;
+    default:
+        return;
     }
-    else if (event->key() == Qt::Key_Alt)
-    {
-        isAltPressing = true;
-        event->accept();
-    }
+    event->accept();
 }
 
 void OpenGLWidget::keyReleaseEvent(QKeyEvent *event)
 {
-    if (event->key() == Qt::Key_Control)
+    if (event->key() == Qt::Key_Escape)
     {
-        qDebug() << "Qt::Key_Control Released in" << this->objectName();
-        isControlPressing = false;
-        event->accept();
+        isCaptureAllEvent = false;
+        this->setCursor(Qt::ArrowCursor);
     }
-    else if (event->key() == Qt::Key_Alt)
-    {
-        isAltPressing = false;
-        event->accept();
-    }
+
 }
 
 void OpenGLWidget::mouseMoveEvent(QMouseEvent *event)
 {
-
-    if (isControlPressing && mouseButton == Qt::LeftButton) //event->button() in mouseMoveEvent is always  Qt::NoButton
+    //event->button() in mouseMoveEvent is always  Qt::NoButton
+    if (mouseButton == Qt::LeftButton)
     {
         if (isFirstMouseClick) {
             lastX = event->x();
@@ -286,26 +310,25 @@ void OpenGLWidget::mouseMoveEvent(QMouseEvent *event)
         lastX = event->x();
         lastY = event->y();
 
-        transX += xoffset * transSensitivity;
-        transY += yoffset * transSensitivity;
-
+        camera.rotate(yoffset * camRotSensitivity, xoffset * camRotSensitivity);
         event->accept();
     }
-    else if (isControlPressing && mouseButton == Qt::RightButton)
-    {
-        if (isFirstMouseClick) {
-            lastX = event->x();
-            isFirstMouseClick = false;
-        }
+//    else if (isControlPressing && mouseButton == Qt::RightButton)
+//    {
+//        if (isFirstMouseClick) {
+//            lastX = event->x();
+//            isFirstMouseClick = false;
+//        }
 
-        int xoffset = event->x() - lastX;
+//        int xoffset = event->x() - lastX;
 
-        lastX = event->x();
+//        lastX = event->x();
 
-        rotationAroundY += xoffset * rotSensitivity;
+//        rotationAroundY += xoffset * rot1Sensitivity;
 
-        event->accept();
-    }
+//        event->accept();
+//    }
+
 }
 
 void OpenGLWidget::mousePressEvent(QMouseEvent *event)
@@ -326,18 +349,26 @@ void OpenGLWidget::mouseReleaseEvent(QMouseEvent *event)
 void OpenGLWidget::wheelEvent(QWheelEvent *event)
 {
     //my mouse y is 120 or -120
-    if (isControlPressing) {
-        scaler *= (1 - event->angleDelta().y() / 120 * scaSensitivity);
-        qDebug() << scaler;
-        event->accept();
-    }
+//    if (isControlPressing) {
+//        scaler *= (1 - event->angleDelta().y() / 120 * scaSensitivity);
+//        qDebug() << scaler;
+//        event->accept();
+//    }
+}
+
+bool OpenGLWidget::eventFilter(QObject *object, QEvent *event)
+{
+    if (isCaptureAllEvent == true)
+        return true;
+    else
+        return false;
 }
 
 void OpenGLWidget::uploadMatrices()
 {
     //update matrix
     matrixProjection.setToIdentity();
-    matrixProjection.perspective(camera.Zoom, (float)this->width() / this->height(), 0.1f, 100);
+    matrixProjection.perspective(camera.fiewOfView, (float)this->width() / this->height(), 0.1f, 100);
     matrixModel.setToIdentity();
     matrixModel.scale(QVector3D(scaler, scaler, scaler));
     matrixModel.translate(QVector3D(transX, transY, 0.0f));
@@ -396,19 +427,21 @@ void OpenGLWidget::setBuiltInObject()
         -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f,
         -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f
     };
+
     int size = sizeof(vertices) / sizeof(float);
     std::vector<float> v(vertices, vertices + size);
-    std::vector<unsigned> indices(size);
-    for (int i = 0; i < size; i++) indices[i] = i;
+    unsigned indSize = size / 8;
+    std::vector<unsigned> indices(indSize);
+    for (unsigned i = 0; i < indSize; i++) indices[i] = i;
     std::vector<unsigned> texIndices;
     texIndices.push_back(0);
-    SubMesh sm(v, indices, texIndices, size);
+    texIndices.push_back(1);
+    SubMesh sm(v, indices, texIndices, 8);
 
     initLightVAO(v);
 
     Mesh* m = new Mesh();
-    m->addSubMesh(&sm);
-
+    m->addSubMesh(sm);
     Texture t;
     t.fileName = "models/textures/container2.png";
     t.type = TextureType::diffuse;
@@ -418,11 +451,36 @@ void OpenGLWidget::setBuiltInObject()
     m->addTexture(t);
     builtInMeshes.push_back(m);
 
-    GameObject* gameObject = new GameObject();
-    gameObject->setMesh(m);
-    gameObject->setShaderProgram(lightProgram);
+    for(unsigned i = 0; i < builtInMeshes.size(); i++)
+        builtInMeshes.at(i)->genBuffers();
 
-    builtInObjects.push_back(gameObject);
+
+    // positions all containers
+    glm::vec3 cubePositions[] = {
+        glm::vec3( 0.0f,  0.0f,  0.0f),
+        glm::vec3( 2.0f,  5.0f, -15.0f),
+        glm::vec3(-1.5f, -2.2f, -2.5f),
+        glm::vec3(-3.8f, -2.0f, -12.3f),
+        glm::vec3( 2.4f, -0.4f, -3.5f),
+        glm::vec3(-1.7f,  3.0f, -7.5f),
+        glm::vec3( 1.3f, -2.0f, -2.5f),
+        glm::vec3( 1.5f,  2.0f, -2.5f),
+        glm::vec3( 1.5f,  0.2f, -1.5f),
+        glm::vec3(-1.3f,  1.0f, -1.5f)
+    };
+
+
+    for (unsigned int i = 0; i < 10; i++)
+    {
+        GameObject* gameObject = new GameObject();
+        gameObject->setMesh(builtInMeshes.back());
+        gameObject->setPosition(cubePositions[i]);
+        float angle = 20.0f * i;
+        gameObject->rotate(angle, glm::vec3(1.0f, 0.3f, 0.5f));
+        builtInObjects.push_back(gameObject);
+    }
+
+
 }
 
 void OpenGLWidget::initLightVAO(const std::vector<float> &v)
@@ -452,7 +510,7 @@ void OpenGLWidget::paintLights()
     for (unsigned i = 0 ; i < lights.size(); i++) {
         glm::mat4 model;
         model = glm::translate(model, glm::vec3(lights.at(i).position()));
-        model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
+        model = glm::scale(model, glm::vec3(1.0f)); // a smaller cube
         lightProgram->setUniform("model", model);
         glDrawArrays(GL_TRIANGLES, 0, 36);
     }

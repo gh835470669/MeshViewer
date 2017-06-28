@@ -12,6 +12,7 @@
 #include <QFileDialog>
 #include <QDir>
 #include <QOpenGLContext>
+#include <QTime>
 
 #include "mesh.h"
 #include "shaderprogram.h"
@@ -45,6 +46,7 @@ public:
     } textureMode = COLOR;
 
     bool flat_flag = true;
+    bool isCaptureAllEvent = false;
 protected:
     //Qt OpenGL functions
     void initializeGL();
@@ -52,8 +54,7 @@ protected:
     void paintGL();
 
     //control varibles for event
-    bool isControlPressing = false;
-    bool isAltPressing = false;
+//    bool isControlPressing = false;
     bool isFirstMouseClick = true;
     int lastX = 0, lastY = 0;
     int mouseButton;
@@ -65,12 +66,13 @@ protected:
     void mousePressEvent(QMouseEvent* event);
     void mouseReleaseEvent(QMouseEvent* event);
     void wheelEvent(QWheelEvent* event);
-
+    bool eventFilter(QObject* object, QEvent* event);
 
     float t = 0.0f;
 private:
-    const GLfloat transSensitivity = 0.05f;
-    const GLfloat rotSensitivity = 0.5f;
+
+    const GLfloat camRotSensitivity = 0.05f;
+    const GLfloat rot1Sensitivity = 0.5f;
     const GLfloat scaSensitivity = 0.05f;
     GLfloat scaler = 1.0f;
     GLfloat transX = 0.0f;
@@ -81,7 +83,6 @@ private:
     QMatrix4x4 matrixModel;
     Camera camera;
 
-    Mesh mesh;
     ShaderProgram* phongShader;
     ShaderProgram* gourandShader;
     ShaderProgram* curShader;
@@ -93,7 +94,7 @@ private:
 
     void setBuiltInObject();
     std::vector<Mesh*> builtInMeshes;
-    std::vector<GameObject*> builtInObjects;
+    std::vector<GameObject *> builtInObjects;
 
     const char* lightVertShaderSource =
             "#version 330 core\n"
@@ -116,6 +117,7 @@ private:
     unsigned lightVAO = 0;
     void initLightVAO(const std::vector<float> &v);
     void paintLights();
+
 public slots:
     void openfile();
     void onDisplayModeChanged(QAction *mode);
