@@ -69,6 +69,8 @@ protected:
 
     float t = 0.0f;
 private:
+    QTime time;
+    int lastFrameTime;
 
     const GLfloat camRotSensitivity = 0.05f;
     const GLfloat rot1Sensitivity = 0.5f;
@@ -82,6 +84,7 @@ private:
     QMatrix4x4 matrixModel;
     Camera camera;
 
+    ShaderProgram* emissionShader;
     ShaderProgram* phongShader;
     ShaderProgram* gourandShader;
     ShaderProgram* curShader;

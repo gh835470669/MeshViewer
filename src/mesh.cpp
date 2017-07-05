@@ -54,7 +54,7 @@ void Mesh::paint(ShaderProgram *shader, const std::vector<Light> &lights)
     {
         shader->setArrayUniform("allLights", i, lights.at(i).intensity(), "intensity");
         shader->setArrayUniform("allLights", i, lights.at(i).position(), "position");
-        shader->setArrayUniform("allLights", i, 0.01f, "attenuation");
+        shader->setArrayUniform("allLights", i, 0.0f, "attenuation");
     }
 
     for (size_t i = 0; i < m_meshes.size(); i++)
@@ -70,9 +70,11 @@ void Mesh::paint(ShaderProgram *shader, const std::vector<Light> &lights)
             // here, i assume N is always 1
             std::string nameAttr;
             if (m_textures.at(index).type == TextureType::diffuse)
-                nameAttr = "texture_diffuse1";
+                nameAttr = "texture_diffuse";
             else if (m_textures.at(index).type == TextureType::specular)
-                nameAttr = "texture_specular1";
+                nameAttr = "texture_specular";
+            else if (m_textures.at(index).type == TextureType::emission)
+                nameAttr = "texture_emission";
 
             shader->setUniform(nameAttr.c_str(), (int)j);
 

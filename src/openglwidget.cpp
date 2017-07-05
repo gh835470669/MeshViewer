@@ -7,9 +7,11 @@ OpenGLWidget::OpenGLWidget(QWidget* parent) : QOpenGLWidget(parent),
     lights(), builtInMeshes(), builtInObjects()
 {
     Light light;
-    light.setPosition(2.0f, 2.0f, 2.0f);
+    light.setPosition(2.0f, 2.0f, -5.0f);
     lights.push_back(light);
 
+    lastFrameTime = 0;
+    time.start();
 }
 
 OpenGLWidget::~OpenGLWidget() {
@@ -69,9 +71,17 @@ void OpenGLWidget::initializeGL() {
     if (!lightProgram->link())
         qDebug() << lightProgram->log().data();
 
+    emissionShader = new ShaderProgram();
+    if (!emissionShader->addShaderFromFile(Shader::Vertex, "shaders/shader.vert"))
+        qDebug() << emissionShader->log().data();
+    if (!emissionShader->addShaderFromFile(Shader::Fragment, "shaders/emission.frag"))
+        qDebug() << emissionShader->log().data();
+    if (!emissionShader->link())
+        qDebug() << emissionShader->log().data();
+
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_TEXTURE_2D);
-    glClearColor(100 / 255.0f, 100 / 255.0f, 200 / 255.0f, 1.0f);
+    //glClearColor(100 / 255.0f, 100 / 255.0f, 200 / 255.0f, 1.0f);
 
     //for debug
     // sphere.dae nanosuit/nanosuit.obj
@@ -171,6 +181,16 @@ void OpenGLWidget::onTextureModeChanged(QAction *mode)
 void OpenGLWidget::paintGL() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+
+    float t = time.elapsed() / 1000.0f;
+    for (unsigned int i = 1; i < builtInObjects.size(); i++)
+    {
+        float angle = 0.1f * (i + 1);
+        builtInObjects.at(i)->rotate(angle, glm::vec3(1.0f, 0.3f, 0.5f));
+    }
+
+
+
     switch (shadingMode)
     {
         case GOURAUD:
@@ -186,9 +206,15 @@ void OpenGLWidget::paintGL() {
 
     paintLights();
 
+    curShader = emissionShader;
+
     curShader->bind();
 
     uploadMatrices();
+
+    //time
+    curShader->setUniform("time", t);
+
 
     //upload ambient
     curShader->setUniform("ambientLight", lightAmbient.x(), lightAmbient.y(),
@@ -428,6 +454,7 @@ void OpenGLWidget::setBuiltInObject()
     std::vector<unsigned> texIndices;
     texIndices.push_back(0);
     texIndices.push_back(1);
+    texIndices.push_back(2);
     SubMesh sm(v, indices, texIndices, 8);
 
     initLightVAO(v);
@@ -440,6 +467,9 @@ void OpenGLWidget::setBuiltInObject()
     m->addTexture(t);
     t.fileName = "models/textures/container2_specular.png";
     t.type = TextureType::specular;
+    m->addTexture(t);
+    t.fileName = "models/textures/matrix.jpg";
+    t.type = TextureType::emission;
     m->addTexture(t);
     builtInMeshes.push_back(m);
 

@@ -29,8 +29,8 @@ uniform vec3 ambientLight;
 
 //texture
 uniform bool texture_flag = false;
-uniform sampler2D texture_diffuse1;
-uniform sampler2D texture_specular1;
+uniform sampler2D texture_diffuse;
+uniform sampler2D texture_specular;
 
 //material
 uniform struct Material {
@@ -88,8 +88,8 @@ void main()
     mat.shininess = 32.0f;
     if(texture_flag)
     {
-        mat.diffuse = texture(texture_diffuse1, texCoords).rgb;
-        mat.specular = texture(texture_specular1, texCoords).rgb;
+        mat.diffuse = texture(texture_diffuse, texCoords).rgb;
+        mat.specular = texture(texture_specular, texCoords).rgb;
     } else {
         mat.diffuse = material.diffuse;
         mat.specular = material.specular;

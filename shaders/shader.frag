@@ -27,8 +27,8 @@ uniform vec3 ambientLight;
 
 //texture
 uniform bool texture_flag = false;
-uniform sampler2D texture_diffuse1;
-uniform sampler2D texture_specular1;
+uniform sampler2D texture_diffuse;
+uniform sampler2D texture_specular;
 in vec2 fragTexCoord;
 
 //material
@@ -97,8 +97,8 @@ void main()
     mat.shininess = 32.0f;
     if(texture_flag)
     {
-        mat.diffuse = texture(texture_diffuse1, fragTexCoord).rgb;
-        mat.specular = texture(texture_specular1, fragTexCoord).rgb;
+        mat.diffuse = texture(texture_diffuse, fragTexCoord).rgb;
+        mat.specular = texture(texture_specular, fragTexCoord).rgb;
     } else {
         mat.diffuse = material.diffuse;
         mat.specular = material.specular;

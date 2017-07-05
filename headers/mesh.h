@@ -22,7 +22,8 @@ namespace makai
     enum TextureType
     {
         diffuse = 0,
-        specular = 1
+        specular = 1,
+        emission = 2
     };
 
     struct Texture

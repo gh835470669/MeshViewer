@@ -64,4 +64,5 @@ DISTFILES += \
     shaders/gourandshader.frag \
     shaders/shader.frag \
     shaders/gourandshader.vert \
-    shaders/shader.vert
+    shaders/shader.vert \
+    shaders/emission.frag
