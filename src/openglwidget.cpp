@@ -356,14 +356,6 @@ void OpenGLWidget::wheelEvent(QWheelEvent *event)
 //    }
 }
 
-bool OpenGLWidget::eventFilter(QObject *object, QEvent *event)
-{
-    if (isCaptureAllEvent == true)
-        return true;
-    else
-        return false;
-}
-
 void OpenGLWidget::uploadMatrices()
 {
     //update matrix

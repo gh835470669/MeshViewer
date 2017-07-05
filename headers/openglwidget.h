@@ -66,7 +66,6 @@ protected:
     void mousePressEvent(QMouseEvent* event);
     void mouseReleaseEvent(QMouseEvent* event);
     void wheelEvent(QWheelEvent* event);
-    bool eventFilter(QObject* object, QEvent* event);
 
     float t = 0.0f;
 private:

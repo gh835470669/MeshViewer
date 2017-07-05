@@ -7,27 +7,72 @@ uniform bool flat_flag = true;
 flat out vec3 flatColor; // Resulting color from lighting calculations
 smooth out vec3 smoothColor; // Resulting color from lighting calculations
 
-uniform bool texture_flag = false;
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 view_inv;
 uniform mat4 projection;
 
-struct Light {
-    vec3 position;
+// light source
+#define MAX_LIGHTS 10
+uniform int numLights;
+uniform struct Light {
+   vec4 position;
+   vec3 intensity;
+   float attenuation;
+   float ambientCoefficient;
+   float coneAngle;
+   vec3 coneDirection;
+} allLights[MAX_LIGHTS];
 
-    vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
-};
+uniform vec3 ambientLight;
 
-uniform Light light;
+//texture
+uniform bool texture_flag = false;
 uniform sampler2D texture_diffuse1;
 uniform sampler2D texture_specular1;
-uniform float shininess;
 
-uniform vec3 objectColor;
+//material
+uniform struct Material {
+    vec3 specular;
+    vec3 diffuse;
+    float shininess;
+} material;
+
+//caculate multiple light source
+vec3 ApplyLight(Light light, Material mat,  vec3 normal, vec3 surfacePos, vec3 surfaceToCamera) {
+    vec3 surfaceToLight;
+    float attenuation = 1.0;
+    if(light.position.w == 0.0) {
+        //directional light
+        surfaceToLight = normalize(-light.position.xyz);
+        attenuation = 1.0; //no attenuation for directional lights
+    } else {
+        //point light
+        surfaceToLight = normalize(light.position.xyz - surfacePos);
+        float distanceToLight = length(light.position.xyz - surfacePos);
+        attenuation = 1.0 / (1.0 + light.attenuation * pow(distanceToLight, 2));
+
+        //cone restrictions (affects attenuation)
+        //float lightToSurfaceAngle = degrees(acos(dot(-surfaceToLight, normalize(light.coneDirection))));
+        //if(lightToSurfaceAngle > light.coneAngle){
+        //    attenuation = 0.0;
+        //}
+    }
+
+    //diffuse
+    float diffuseCoefficient = max(0.0, dot(normal, surfaceToLight));
+    vec3 diffuse = diffuseCoefficient * light.intensity * mat.diffuse;
+
+    //specular
+    float specularCoefficient = 0.0;
+    if(diffuseCoefficient > 0.0) //back face need not to calculate
+        specularCoefficient = pow(max(0.0, dot(normal, normalize(surfaceToLight + surfaceToCamera))), mat.shininess);
+    vec3 specular = specularCoefficient * light.intensity * mat.specular;
+
+    //linear color (color before gamma correction)
+    return attenuation * (diffuse + specular);
+}
 
 void main()
 {
@@ -38,32 +83,26 @@ void main()
     vec3 Position = vec3(model * vec4(posAttr, 1.0f));
     vec3 Normal = mat3(transpose(inverse(model))) * norAttr;
 
-    //ambient lighting
-    float ambientStrength = 0.1f;
-    vec3 ambient = light.ambient * (texture_flag ? texture(texture_diffuse1, texCoords).rgb : ambientStrength * objectColor);
+    //material
+    Material mat;
+    mat.shininess = 32.0f;
+    if(texture_flag)
+    {
+        mat.diffuse = texture(texture_diffuse1, texCoords).rgb;
+        mat.specular = texture(texture_specular1, texCoords).rgb;
+    } else {
+        mat.diffuse = material.diffuse;
+        mat.specular = material.specular;
+    }
 
-    //diffuse lighting
+    //diffuse and specular part
     vec3 norm = normalize(Normal);
-    vec3 lightDir = normalize(light.position - Position);
-    float diff = max(dot(norm, lightDir), 0.0);
-    float diffuseStrength = 1.0f;
-    vec3 diffuse = light.diffuse * diff * (texture_flag ? texture(texture_diffuse1, texCoords).rgb : diffuseStrength * objectColor);
-
-
-    //specular lighting
-//    vec3 viewDir = normalize(vec3(view_inv * vec4(0.0, 0.0, 0.0, 1.0)) - Position);
-//    vec3 reflectDir = reflect(-lightDir, norm); //negate the lightDir because the reflect function expects the first vector to point from the light source towards the fragment's position
-//    float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
-//    float specularStrength = 1.0f;
-//    vec3 specular = light.specular * spec *(texture_flag ? texture(texture_specular1, texCoords).xzy : specularStrength);
-
-    //specular lighting , blinn
     vec3 viewDir = normalize(vec3(view_inv * vec4(0.0, 0.0, 0.0, 1.0)) - Position);
-    vec3 halfway = normalize(lightDir + viewDir);
-    float spec = pow(max(dot(halfway, norm), 0.0), shininess);
-    float specularStrength = 1.0f;
-    vec3 specular = light.specular * spec *(texture_flag ? texture(texture_specular1, texCoords).rgb : specularStrength);
+    vec3 lights = vec3(0);
+    for (int i = 0; i < numLights; i++) {
+        lights += ApplyLight(allLights[i], mat, norm, Position, viewDir);
+    }
 
-    flatColor = ambient + diffuse + specular;
+    flatColor = ambientLight * mat.diffuse + lights;
     if (flat_flag == false) smoothColor = flatColor;
 }

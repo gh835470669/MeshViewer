@@ -48,7 +48,8 @@ HEADERS  += headers/mainwindow.h \
 
 FORMS    += mainwindow.ui
 
-RESOURCES +=  mwshviewer.qrc
+RESOURCES += \ 
+    meshviewer.qrc
 
 INCLUDEPATH += $$PWD/headers
 
